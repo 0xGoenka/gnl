@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*   v2.c                                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: eleclet <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2015/12/22 19:18:05 by eleclet           #+#    #+#             */
-/*   Updated: 2015/12/29 18:31:21 by eleclet          ###   ########.fr       */
+/*   Created: 2015/12/31 11:30:30 by eleclet           #+#    #+#             */
+/*   Updated: 2015/12/31 16:26:58 by eleclet          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,56 +17,78 @@ int		n(char *s)
 	int i;
 
 	i = 0;
-	while (s && s[i] != '\n' && s[i] != '\0')
+	while (s[i] != '\0')
+	{
+		if (s[i] == '\n')
+		{
+			s[i] = '\0';
+			return (i + 1);
+		}
 		i++;
+	}
 	return (i);
 }
-char	*split(char *s,char **line)
+void	join_buff(char **s, char **buff)
 {
-	char *ret;
+	char *tmp0;
+	char *tmp1;
+
+	tmp0 = NULL;
+	tmp1 = NULL;
+
+	if (*buff && **buff)
+	{
+		tmp1 = ft_strdup(*buff);
+		if (*s)
+		{
+			tmp0 = ft_strdup(*s);
+			free(*s);
+		}
+		*s = ft_strjoin(tmp0, tmp1);
+		if (tmp0)
+			free(tmp0);
+		if (tmp1)
+			free(tmp1);
+	}
+}
+int		rline(char **s, char **buff, char **line)
+{
+	int i;
 	char *tmp;
-	
+
 	tmp = NULL;
 	*line = NULL;
-	ft_strdel(&tmp);
-	if (!(ret = (char *)malloc(n(s) + 1)))
-		return ("");
-	ft_bzero(ret, n(s) + 1);
-	ft_strncpy(ret, s, n(s));
-	*line = ret;
-	if (s[n(s)] == '\0')
-		return (ft_strdup(""));
-	tmp = ft_strdup((s + n(s) + 1));
-	ft_strdel(&s);
-	ft_strdel(&ret);
-	s = &tmp[0];
-	return (s);
-
+	i = n(*s);
+	*line = ft_strdup(*s);
+	tmp = ft_strdup(*s + i);
+	free(*s);
+	*s = tmp;
+	if (buff)
+		free(*buff), *buff = NULL;
+	return (1);
 }
-int		get_next_line(int fd,char **line)
+int		get_next_line(int fd, char **line)
 {
 	static char *s = NULL;
-	char buff[BUFF_SIZE + 1];
-	int ret;
+	char *buff;
+	int r;
 	
+	if (fd <= 0 || !line || BUFF_SIZE < 1)
+		return(-1);
+	if (!(buff = (char *)malloc(sizeof(char) * BUFF_SIZE + 1)))
+		return (-1);
 	ft_bzero(buff, BUFF_SIZE + 1);
-	if (fd < 0 || !line || BUFF_SIZE < 1)
+	while (((r = read(fd, buff, BUFF_SIZE)) > 0 ) && !ft_strchr(buff, '\n'))
+		buff[r] = '\0',	join_buff(&s, &buff);
+	if (r < 0)
 		return (-1);
-	while (((ret = read(fd, buff, BUFF_SIZE)) > 0 ) && !ft_strchr(buff, '\n') &&
-			ft_strchr(buff, '\0'))
-		buff[ret] = '\0', s = ft_strjoin(s , buff);
-	if (ret < 0)
-		return (-1);
-	if (ft_strchr(buff, '\n'))
-		buff[ret] = '\0', s = ft_strjoin(s, buff);
-	if (!ret && !ft_strlen(s))
-	{	
-		if (s)
-			free(s) , s = NULL;
-		line = NULL;
-		return (0);
-	}
-	if (!(s = split(s, line)))
-		return (0);
-	return (1);
+	if (buff && *buff && r > 0)
+		buff[r] = '\0', join_buff(&s, &buff);
+	if (s && s[0] != '\0')
+		return (rline(&s, &buff, line));
+	if (buff)
+		free(buff), buff = NULL;
+	ft_strdel(&s);
+	*line = NULL;
+	return (0);
 }
